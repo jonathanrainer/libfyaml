@@ -3585,7 +3585,7 @@ int fy_fetch_block_scalar(struct fy_parser *fyp, bool is_literal, int c)
 	int lastc, rc, increment = 0, current_indent, new_indent, indent = 0, check_indent;
 	int breaks, breaks_length, presentation_breaks_length, first_break_length, max_indent, min_indent;
 	bool doc_start_end_detected, empty, empty_line, prev_empty_line, indented, prev_indented, first;
-	bool has_ws, has_lb, has_weird_nl, starts_with_ws, starts_with_lb, ends_with_ws, ends_with_lb, trailing_lb;
+	bool has_ws, has_lb = false, has_weird_nl, starts_with_ws, starts_with_lb, ends_with_ws, ends_with_lb, trailing_lb;
 	bool pending_nl, ends_with_eof, starts_with_eof, content_is_eof;
 	struct fy_token *fyt;
 	size_t length, line_length, trailing_ws, trailing_breaks_length;
@@ -3593,7 +3593,7 @@ int fy_fetch_block_scalar(struct fy_parser *fyp, bool is_literal, int c)
 	size_t prefix_length, suffix_length;
 	unsigned int chomp_amt;
 	int actual_lb_length, pending_lb_length;
-	struct fy_mark indicator_mark;
+	struct fy_mark indicator_mark, content_end_mark;
 	bool generated_indent, final_lb;
 	size_t tlength;
 
@@ -3803,6 +3803,7 @@ int fy_fetch_block_scalar(struct fy_parser *fyp, bool is_literal, int c)
 		if (!fy_is_z(c)) {
 			/* eat line break */
 			actual_lb_length = (int)fy_utf8_width(c);
+			fy_get_mark(fyp, &content_end_mark);
 			fy_advance(fyp, c);
 
 			has_lb = true;
@@ -3917,7 +3918,10 @@ int fy_fetch_block_scalar(struct fy_parser *fyp, bool is_literal, int c)
 	}
 
 	/* end... */
-	fy_fill_atom_end(fyp, &handle);
+	if (has_lb)
+		fy_fill_atom_end_at(fyp, &handle, &content_end_mark);
+	else
+		fy_fill_atom_end(fyp, &handle);
 
 	if (c == FYUG_INV || c == FYUG_PARTIAL) {
 		FYP_MARK_ERROR(fyp, &handle.start_mark, &handle.end_mark, FYEM_SCAN,
